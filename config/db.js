@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
     await mongoose.connect(
-      "mongodb://admin:password@localhost:27017/devopsdb?authSource=admin"
+      "mongodb://admin:password@lmongodb:27017/devopsdb?authSource=admin"
     );
 
     console.log("MongoDB Connected");
