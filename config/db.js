@@ -2,11 +2,15 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(
-      "mongodb://admin:password@localhost:27017/devopsdb?authSource=admin"
-    );
+
+    const mongoURI =
+      process.env.MONGO_URI ||
+      "mongodb://admin:password@mongodb:27017/devopsdb?authSource=admin";
+
+    await mongoose.connect(mongoURI);
 
     console.log("MongoDB Connected");
+
   } catch (error) {
     console.error(error);
     process.exit(1);
