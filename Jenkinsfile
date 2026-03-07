@@ -10,7 +10,7 @@ IMAGE_NAME = "devops-backend"
 IMAGE_TAG = "${BUILD_NUMBER}"
 
 CONTROL_PLANE = "192.168.29.63"
-K8S_NAMESPACE = "devops-app-production"
+NAMESPACE = "devops-app-production"
 
 }
 
@@ -55,9 +55,17 @@ stage('Login to Harbor') {
 
 steps {
 
+withCredentials([usernamePassword(
+credentialsId: 'harbor-creds',
+usernameVariable: 'HARBOR_USER',
+passwordVariable: 'HARBOR_PASS'
+)]) {
+
 sh '''
-docker login $REGISTRY -u admin -p Harbor@123
+docker login $REGISTRY -u $HARBOR_USER -p $HARBOR_PASS
 '''
+
+}
 
 }
 
@@ -79,43 +87,43 @@ stage('Deploy Backend on Kubernetes Control Plane') {
 
 steps {
 
-sh '''
+sh """
 ssh -o StrictHostKeyChecking=no master@$CONTROL_PLANE << EOF
 
 echo "----- Checking Namespace -----"
 
-if kubectl get ns $K8S_NAMESPACE >/dev/null 2>&1
+if kubectl get ns $NAMESPACE >/dev/null 2>&1
 then
     echo "Namespace exists"
 else
     echo "Namespace missing → creating namespace"
-    kubectl create ns $K8S_NAMESPACE
+    kubectl create ns $NAMESPACE
 fi
 
 
 echo "----- Checking MongoDB Pod -----"
 
-if kubectl get pods -n $K8S_NAMESPACE | grep mongodb-0 | grep Running >/dev/null
+if kubectl get pods -n $NAMESPACE | grep mongodb-0 | grep Running >/dev/null
 then
     echo "MongoDB is running"
 else
-    echo "MongoDB pod not running → deployment stopped"
+    echo "MongoDB pod not running → stopping deployment"
     exit 1
 fi
 
 
 echo "----- Checking Backend Deployment -----"
 
-if kubectl get deployment backend -n $K8S_NAMESPACE >/dev/null 2>&1
+if kubectl get deployment backend -n $NAMESPACE >/dev/null 2>&1
 then
-    echo "Backend exists → updating image"
+    echo "Backend exists → performing rolling update"
 
     kubectl set image deployment/backend \
     backend=$REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG \
-    -n $K8S_NAMESPACE
+    -n $NAMESPACE
 
 else
-    echo "Backend deployment not found → applying deployment YAML"
+    echo "Backend not found → applying deployment YAML"
 
     kubectl apply -f /home/master/devops-production/backend-production/
 
@@ -124,20 +132,27 @@ fi
 
 echo "----- Waiting for Rollout -----"
 
-kubectl rollout status deployment/backend -n $K8S_NAMESPACE
+kubectl rollout status deployment/backend -n $NAMESPACE
+
+if [ \$? -ne 0 ]; then
+    echo "Deployment failed → rolling back"
+
+    kubectl rollout undo deployment/backend -n $NAMESPACE
+    exit 1
+fi
 
 
 echo "----- Current Pods -----"
 
-kubectl get pods -n $K8S_NAMESPACE
+kubectl get pods -n $NAMESPACE
 
 
 echo "----- Current Services -----"
 
-kubectl get svc -n $K8S_NAMESPACE
+kubectl get svc -n $NAMESPACE
 
 EOF
-'''
+"""
 
 }
 
