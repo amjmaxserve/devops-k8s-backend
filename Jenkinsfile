@@ -9,7 +9,8 @@ PROJECT="devops-production"
 IMAGE_NAME="devops-backend"
 IMAGE_TAG="${BUILD_NUMBER}"
 
-K8S_NAMESPACE="devops-app-production"
+CONTROL_PLANE="master@192.168.29.63"
+NAMESPACE="devops-app-production"
 
 }
 
@@ -74,40 +75,35 @@ docker push $REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG
 
 }
 
-stage('Verify MongoDB in Kubernetes') {
+stage('Deploy Backend on Kubernetes Control Plane') {
 
 steps {
 
-sh '''
-kubectl get pods -n $K8S_NAMESPACE | grep mongodb
-'''
+sh """
 
-}
+ssh -o StrictHostKeyChecking=no $CONTROL_PLANE '
 
-}
+echo "Checking MongoDB pod..."
 
-stage('Deploy Backend to Kubernetes') {
+kubectl get pods -n $NAMESPACE | grep mongodb
 
-steps {
+echo "Updating backend image..."
 
-sh '''
 kubectl set image deployment/backend \
 backend=$REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG \
--n $K8S_NAMESPACE
-'''
+-n $NAMESPACE
 
-}
+echo "Waiting for rollout..."
 
-}
+kubectl rollout status deployment/backend -n $NAMESPACE
 
-stage('Verify Deployment') {
+echo "Current running pods:"
 
-steps {
+kubectl get pods -n $NAMESPACE
 
-sh '''
-kubectl rollout status deployment/backend -n $K8S_NAMESPACE
-kubectl get pods -n $K8S_NAMESPACE
-'''
+'
+
+"""
 
 }
 
