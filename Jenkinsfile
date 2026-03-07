@@ -4,13 +4,13 @@ agent any
 
 environment {
 
-REGISTRY="192.168.29.4:8088"
-PROJECT="devops-production"
-IMAGE_NAME="devops-backend"
-IMAGE_TAG="${BUILD_NUMBER}"
+REGISTRY = "192.168.29.4:8088"
+PROJECT = "devops-production"
+IMAGE_NAME = "devops-backend"
+IMAGE_TAG = "${BUILD_NUMBER}"
 
-CONTROL_PLANE="master@192.168.29.63"
-NAMESPACE="devops-app-production"
+CONTROL_PLANE = "192.168.29.63"
+K8S_NAMESPACE = "devops-app-production"
 
 }
 
@@ -79,33 +79,83 @@ stage('Deploy Backend on Kubernetes Control Plane') {
 
 steps {
 
-sh """
+sh '''
+ssh -o StrictHostKeyChecking=no master@$CONTROL_PLANE << EOF
 
-ssh -o StrictHostKeyChecking=no $CONTROL_PLANE '
+echo "----- Checking Namespace -----"
 
-echo "Checking MongoDB pod..."
+if kubectl get ns $K8S_NAMESPACE >/dev/null 2>&1
+then
+    echo "Namespace exists"
+else
+    echo "Namespace missing → creating namespace"
+    kubectl create ns $K8S_NAMESPACE
+fi
 
-kubectl get pods -n $NAMESPACE | grep mongodb
 
-echo "Updating backend image..."
+echo "----- Checking MongoDB Pod -----"
 
-kubectl set image deployment/backend \
-backend=$REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG \
--n $NAMESPACE
+if kubectl get pods -n $K8S_NAMESPACE | grep mongodb-0 | grep Running >/dev/null
+then
+    echo "MongoDB is running"
+else
+    echo "MongoDB pod not running → deployment stopped"
+    exit 1
+fi
 
-echo "Waiting for rollout..."
 
-kubectl rollout status deployment/backend -n $NAMESPACE
+echo "----- Checking Backend Deployment -----"
 
-echo "Current running pods:"
+if kubectl get deployment backend -n $K8S_NAMESPACE >/dev/null 2>&1
+then
+    echo "Backend exists → updating image"
 
-kubectl get pods -n $NAMESPACE
+    kubectl set image deployment/backend \
+    backend=$REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG \
+    -n $K8S_NAMESPACE
 
-'
+else
+    echo "Backend deployment not found → applying deployment YAML"
 
-"""
+    kubectl apply -f /home/master/devops-production/backend-production/
+
+fi
+
+
+echo "----- Waiting for Rollout -----"
+
+kubectl rollout status deployment/backend -n $K8S_NAMESPACE
+
+
+echo "----- Current Pods -----"
+
+kubectl get pods -n $K8S_NAMESPACE
+
+
+echo "----- Current Services -----"
+
+kubectl get svc -n $K8S_NAMESPACE
+
+EOF
+'''
 
 }
+
+}
+
+}
+
+post {
+
+success {
+
+echo "Backend Deployment Completed Successfully"
+
+}
+
+failure {
+
+echo "Pipeline Failed - Check Logs"
 
 }
 
