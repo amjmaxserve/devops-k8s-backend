@@ -55,7 +55,7 @@ stage('Login to Harbor') {
 steps {
 
 sh '''
-sudo docker login $REGISTRY -u admin -p Harbor@123
+docker login $REGISTRY -u admin -p Harbor@123
 '''
 
 }
@@ -67,7 +67,7 @@ stage('Push Image to Harbor') {
 steps {
 
 sh '''
-sudo docker push $REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG
+docker push $REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG
 '''
 
 }
