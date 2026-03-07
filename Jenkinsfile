@@ -19,7 +19,7 @@ stage('Checkout Source Code') {
 
 steps {
 
-git branch: 'main',
+git branch: 'master',
 url: 'git@github.com:amjmaxserve/devops-k8s-backend.git'
 
 }
@@ -55,7 +55,7 @@ stage('Login to Harbor') {
 steps {
 
 sh '''
-docker login $REGISTRY -u admin -p Harbor12345
+sudo docker login $REGISTRY -u admin -p Harbor@123
 '''
 
 }
@@ -67,7 +67,7 @@ stage('Push Image to Harbor') {
 steps {
 
 sh '''
-docker push $REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG
+sudo docker push $REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG
 '''
 
 }
