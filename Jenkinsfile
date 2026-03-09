@@ -10,7 +10,7 @@ IMAGE_NAME = "devops-backend"
 IMAGE_TAG = "${BUILD_NUMBER}"
 
 CONTROL_PLANE = "192.168.29.111"
-NAMESPACE = "devops-app-production"
+NAMESPACE = "devops-app"
 
 }
 
