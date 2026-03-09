@@ -125,7 +125,7 @@ then
 else
     echo "Backend not found → applying deployment YAML"
 
-    kubectl apply -f /home/master/devops-production/backend-production/
+    kubectl apply -f /home/master/devops-app-production/backend/
 
 fi
 
